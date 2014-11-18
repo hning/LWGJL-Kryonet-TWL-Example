@@ -34,15 +34,19 @@ import java.io.IOException;
 
 import javax.swing.DefaultListModel;
 
+import de.matthiasmann.twl.Button;
 import de.matthiasmann.twl.DesktopArea;
 import de.matthiasmann.twl.DialogLayout;
 import de.matthiasmann.twl.EditField;
+import de.matthiasmann.twl.EditField.Callback;
 import de.matthiasmann.twl.Event;
 import de.matthiasmann.twl.FPSCounter;
 import de.matthiasmann.twl.GUI;
+import de.matthiasmann.twl.Label;
 import de.matthiasmann.twl.ResizableFrame;
 import de.matthiasmann.twl.ScrollPane;
 import de.matthiasmann.twl.TextArea;
+import de.matthiasmann.twl.Widget;
 import de.matthiasmann.twl.textarea.HTMLTextAreaModel;
 import de.matthiasmann.twl.renderer.lwjgl.LWJGLRenderer;
 import de.matthiasmann.twl.theme.ThemeManager;
@@ -69,60 +73,31 @@ import com.esotericsoftware.minlog.Log;
  * This class also acts as root pane
  */
 public class ChatDemo extends DesktopArea{
+  
   public Client client;
   private final FPSCounter fpsCounter;
   private final ChatFrame chatFrame;
+  private final LoginFrame loginFrame;
   public boolean quit;
   public String name;
   
   public ChatDemo()  {
-      client = new Client();
-      client.start();
-      Network.register(client);
-      
-      name = "test";
-      
-      client.addListener(new Listener() {
-        public void connected (Connection connection) {
-          RegisterName registerName = new RegisterName();
-          registerName.name = name;
-          client.sendTCP(registerName);
-        }
-
-        public void received (Connection connection, Object object) {
-//          if (object instanceof UpdateNames) {
-//            UpdateNames updateNames = (UpdateNames)object;
-//            chatFrame.setNames(updateNames.names);
-//            return;
-//          }
-
-          if (object instanceof ChatMessage) {
-            ChatMessage chatMessage = (ChatMessage)object;
-            System.out.println(chatMessage.text);
-            chatFrame.addRowThreadsafe(chatMessage.text);
-            return;
-          }
-        }
-
-//        public void disconnected (Connection connection) {
-//          EventQueue.invokeLater(new Runnable() {
-//            public void run () {
-//              // Closing the frame calls the close listener which will stop the client's update thread.
-//              chatFrame.dispose();
-//            }
-//          });
-//        }
-      });
       
       fpsCounter = new FPSCounter();
       add(fpsCounter);
 
       chatFrame = new ChatFrame(this);
       add(chatFrame);
+      
+      loginFrame = new LoginFrame(this);
+      add(loginFrame);
 
       chatFrame.setSize(400, 200);
       chatFrame.setPosition(10, 350);
-      
+      chatFrame.setVisible(false);
+//      
+      loginFrame.setSize(400, 200);
+//      loginFrame.setPosition(10,350);
       
       final String host = "localhost";
       
@@ -140,7 +115,7 @@ public class ChatDemo extends DesktopArea{
                   ChatDemo.class.getResource("chat.xml"), renderer);
           gui.applyTheme(theme);
           
-          client.connect(5000, host, Network.port);
+//          client.connect(5000, host, Network.port);
 //          new Thread("Connect") {
 //            public void run () {
 //              try {
@@ -169,7 +144,84 @@ public class ChatDemo extends DesktopArea{
       Display.destroy();
   }
   
-  static class ChatFrame extends ResizableFrame {
+  class LoginFrame extends Widget{
+    final ChatDemo outerFrame;
+    final DialogLayout loginPanel;
+    final EditField efName;
+    final EditField efHost;
+    final Button btnLogin;
+    
+    public LoginFrame(final ChatDemo _outerFrame){
+      outerFrame = _outerFrame;
+      
+      loginPanel = new DialogLayout();
+      loginPanel.setTheme("login-panel");
+      
+      efName = new EditField();
+      efName.setText("User");
+      efName.addCallback(new Callback() {
+        public void callback(int key) {
+            if(key == Event.KEY_RETURN) {
+                efHost.requestKeyboardFocus();
+            }
+        }
+      });
+      
+      efHost = new EditField();
+      efHost.setText("localhost");
+      efHost.addCallback(new Callback() {
+          public void callback(int key) {
+              if(key == Event.KEY_RETURN) {
+                System.out.println("Return Pressed");
+                outerFrame.connectToServer(efName.getText(), efHost.getText());
+              }
+          }
+      });
+      
+      Label lName = new Label("Name");
+      lName.setLabelFor(efName);
+      
+      Label lPassword = new Label("Host");
+      lPassword.setLabelFor(efHost);
+      
+      btnLogin = new Button("LOGIN");
+      btnLogin.addCallback(new Runnable() {
+          public void run() {
+            outerFrame.connectToServer(efName.getText(), efHost.getText());      
+          }
+      });
+      
+      DialogLayout.Group hLabels = loginPanel.createParallelGroup(lName, lPassword);
+      DialogLayout.Group hFields = loginPanel.createParallelGroup(efName, efHost);
+      DialogLayout.Group hBtn = loginPanel.createSequentialGroup()
+//              .addGap()   // right align the button by using a variable gap
+              .addWidget(btnLogin);
+      
+      loginPanel.setHorizontalGroup(loginPanel.createParallelGroup()
+              .addGroup(loginPanel.createSequentialGroup(hLabels, hFields))
+              .addGroup(hBtn));
+      loginPanel.setVerticalGroup(loginPanel.createSequentialGroup()
+              .addGroup(loginPanel.createParallelGroup(lName, efName))
+              .addGroup(loginPanel.createParallelGroup(lPassword, efHost))
+              .addWidget(btnLogin));
+      
+//      btnLogin.setEnabled(true);
+      add(loginPanel);
+    }
+    
+    @Override
+    protected void layout() {
+      btnLogin.adjustSize();
+      loginPanel.adjustSize();
+      loginPanel.setPosition(
+              getInnerX() + (getInnerWidth() - loginPanel.getWidth())/2,
+              getInnerY() + (getInnerHeight() - loginPanel.getHeight())/2);
+    
+    }
+  }
+
+  
+  class ChatFrame extends ResizableFrame {
     private final StringBuilder sb;
     private final HTMLTextAreaModel textAreaModel;
     private final TextArea textArea;
@@ -217,7 +269,6 @@ public class ChatDemo extends DesktopArea{
         l.setVerticalGroup(l.createSequentialGroup(scrollPane, editField));
 
         add(l);
-
         appendRow("default", "Welcome to the chat demo. Type your messages below :)");
     }
 
@@ -280,11 +331,13 @@ public class ChatDemo extends DesktopArea{
       appendRow("color"+curColor, message);
     }
     
+    //Save the GUI so we can synchronize below
     @Override
-    protected void afterAddToGUI(de.matthiasmann.twl.GUI gui) {
+    protected synchronized void afterAddToGUI(de.matthiasmann.twl.GUI gui) {
       this.gui = gui;
     }
     
+    //Synchronize GUI with the OpenGL thread
     private synchronized void addRowThreadsafe(final String msg) {
       if(this.gui != null) {
          this.gui.invokeLater(new Runnable() {
@@ -306,6 +359,12 @@ public class ChatDemo extends DesktopArea{
       fpsCounter.setPosition(
               getInnerWidth() - fpsCounter.getWidth(),
               getInnerHeight() - fpsCounter.getHeight());
+      
+      loginFrame.adjustSize();
+      loginFrame.setPosition(
+              getInnerX() + (getInnerWidth() - loginFrame.getWidth())/2,
+              getInnerY() + (getInnerHeight() - loginFrame.getHeight())/2);
+      
   }
 
   @Override
@@ -322,6 +381,57 @@ public class ChatDemo extends DesktopArea{
               }
       }
       return false;
+  }
+  
+  protected Boolean connectToServer(final String name, final String host){
+    this.loginFrame.setVisible(false);
+    this.chatFrame.setVisible(true);
+    
+    client = new Client();
+    client.start();
+    Network.register(client);
+    
+    client.addListener(new Listener() {
+      public void connected (Connection connection) {
+        RegisterName registerName = new RegisterName();
+        registerName.name = name;
+        client.sendTCP(registerName);
+      }
+
+      public void received (Connection connection, Object object) {
+//        if (object instanceof UpdateNames) {
+//          UpdateNames updateNames = (UpdateNames)object;
+//          chatFrame.setNames(updateNames.names);
+//          return;
+//        }
+
+        if (object instanceof ChatMessage) {
+          ChatMessage chatMessage = (ChatMessage)object;
+          System.out.println(chatMessage.text);
+          chatFrame.addRowThreadsafe(chatMessage.text);
+          return;
+        }
+      }
+
+//      public void disconnected (Connection connection) {
+//        EventQueue.invokeLater(new Runnable() {
+//          public void run () {
+//            // Closing the frame calls the close listener which will stop the client's update thread.
+//            chatFrame.dispose();
+//          }
+//        });
+//      }
+    });
+    
+    try {
+      client.connect(5000, host, Network.port);
+      return true;
+    // Server communication after connection can go here, or in Listener#connected().
+    } catch (IOException ex) {
+      ex.printStackTrace();
+      System.exit(1);
+    }
+    return false;
   }
   
   public static void main (String[] args) {

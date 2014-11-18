@@ -14,13 +14,23 @@ import javax.swing.JLabel;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Server;
+
 import chat.Network.ChatMessage;
 import chat.Network.RegisterName;
 import chat.Network.UpdateNames;
+
+
+
+
 //import com.esotericsoftware.kryonet.examples.chat.Network.ChatMessage;
 //import com.esotericsoftware.kryonet.examples.chat.Network.RegisterName;
 //import com.esotericsoftware.kryonet.examples.chat.Network.UpdateNames;
 import com.esotericsoftware.minlog.Log;
+
+import de.matthiasmann.twl.Button;
+import de.matthiasmann.twl.DialogLayout;
+import de.matthiasmann.twl.EditField;
+import de.matthiasmann.twl.Widget;
 
 public class ChatServer {
 	Server server;
@@ -142,8 +152,18 @@ public class ChatServer {
 		public String name;
 	}
 
+//	class LoginScreen extends Widget {
+//	    private final DialogLayout loginPanel;
+//	    private final EditField efName;
+//	    private final EditField efPassword;
+//	    private final Button btnLogin;
+//	    public LoginScreen(){
+////	      loginPanel = 
+//	    }
+//	}
+
 	public static void main (String[] args) throws IOException {
-//		Log.set(Log.LEVEL_DEBUG);
+		Log.set(Log.LEVEL_DEBUG);
 		new ChatServer();
 	}
 }
